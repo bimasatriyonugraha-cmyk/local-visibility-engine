@@ -33,18 +33,18 @@ client = genai.Client(
 )
 
 st.title("⚡ LocaPulse AI: Local Visibility & Web Engine")
-st.caption("Human-in-the-Loop Multi-Agent: Audit GBP, Schema SEO, QA Review, & Refinement Interaktif.")
+st.caption("Human-in-the-Loop Multi-Agent: Audit GBP, SEO, Konten Sosmed, Web & QA Review.")
 
 # Sidebar: Form Input Bisnis
 with st.sidebar:
     st.header("Data Usaha Klien")
     business_name = st.text_input("Nama Usaha UMKM", placeholder="Contoh: Defa Digi")
     business_niche = st.text_input("Kategori / Niche", placeholder="Contoh: Konsultan Google Business Profile")
-    business_city = st.text_input("Kota / Wilayah", placeholder="Contoh: Semarang, Jawa Tengah")
+    business_city = st.text_input("Kota / Wilayah", placeholder="Contoh: Gunungpati, Semarang")
     phone_number = st.text_input("Nomor WhatsApp", placeholder="Contoh: 6281234567890")
     additional_notes = st.text_area(
         "Konteks & Keunggulan",
-        placeholder="Contoh: Spesialis merawat GBP biar sehat dan pembuatan microsite instan."
+        placeholder="Contoh: Konsultasi cara merawat GBP biar tetap sehat dan pembuatan microsite instan."
     )
     
     run_btn = st.button("🚀 1. Jalankan Analisis Awal", type="primary", use_container_width=True)
@@ -74,10 +74,7 @@ if run_btn and business_name:
 
             Output: Format Markdown yang rapi dan profesional.
             """
-            res_audit = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=prompt_audit,
-            )
+            res_audit = client.models.generate_content(model="gemini-3.6-flash", contents=prompt_audit)
             raw_audit = res_audit.text
 
             # 2. AGENT 2: TECHNICAL SEO & LOCAL SCHEMA SPECIALIST
@@ -98,26 +95,41 @@ if run_btn and business_name:
 
             Format Output: Markdown rapi dengan blok kode ```json dan ```html.
             """
-            res_seo = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=prompt_seo,
-            )
+            res_seo = client.models.generate_content(model="gemini-3.6-flash", contents=prompt_seo)
             raw_seo = res_seo.text
 
-            # 3. AGENT 3: QUALITY ASSURANCE (CRITIC AGENT)
-            st.write("🛡️ Agent 3: Melakukan evaluasi kepatuhan pedoman & integritas data...")
+            # 3. AGENT 3: SOCIAL MEDIA CONTENT STRATEGIST
+            st.write("📱 Agent 3: Merancang strategi konten sosmed & skrip animasi video pendek...")
+            prompt_socmed = f"""
+            Peran: Senior Social Media & Video Content Strategist.
+            Klien: {business_name} ({business_niche} di {business_city}). Keunggulan: {additional_notes}.
+
+            Tugas:
+            1. Buat 3 ide konten video vertikal (Reels/TikTok/Shorts) yang fokus mendatangkan trafik lokal.
+            2. Rancang 1 storyboard/skrip spesifik untuk video animasi pendek menggunakan maskot karakter.
+               Karakter harus digambarkan sebagai stickman minimalis, tanpa mulut, bernama NOMO. 
+               Adegan harus berlatar belakang tetap putih, bergerak minimal, dan dimulai dengan NOMO menyapa "Hai, perkenalkan, namaku NOMO", lalu mengedukasi penonton tentang layanan {business_name} sebelum mengarahkan ke link bio/WhatsApp.
+            3. Buat 3 ide konten statis (Carousel atau Single Image) untuk Instagram/Facebook. 
+               Untuk setiap ide ini, WAJIB sertakan "Prompt AI Image Generator" (berbahasa Inggris).
+               PENTING: Sesuaikan gaya visual (style, lighting, angle, composition) pada prompt gambar tersebut agar secara spesifik paling cocok dan relevan dengan kategori bisnis {business_niche}.
+            
+            Output: Format Markdown terstruktur.
+            """
+            res_socmed = client.models.generate_content(model="gemini-3.6-flash", contents=prompt_socmed)
+            raw_socmed = res_socmed.text
+
+            # 4. AGENT 4: QUALITY ASSURANCE (CRITIC AGENT)
+            st.write("🛡️ Agent 4: Melakukan evaluasi kepatuhan pedoman & integritas data...")
             prompt_qa = f"""
             Peran: Lead Quality Assurance & Google Policy Auditor.
-            Lakukan evaluasi kritis terhadap hasil draf GBP dan SEO berikut:
+            Lakukan evaluasi kritis terhadap hasil draf GBP, SEO, dan Sosmed berikut:
 
             Data Bisnis Asli:
             - Nama: {business_name} | Kategori: {business_niche} | Kota: {business_city} | WA: {phone_number}
 
-            Draf GBP:
-            {raw_audit}
-
-            Draf SEO & Schema:
-            {raw_seo}
+            Draf GBP: {raw_audit}
+            Draf SEO: {raw_seo}
+            Draf Sosmed: {raw_socmed}
 
             Kriteria Penilaian:
             1. Deteksi kata-kata berlebihan, spam, atau potensi pelanggaran pedoman Google Business Profile.
@@ -127,14 +139,11 @@ if run_btn and business_name:
 
             Output: Format Markdown dengan badge [PASS], [WARNING], atau [FIX NEEDED].
             """
-            res_qa = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=prompt_qa,
-            )
+            res_qa = client.models.generate_content(model="gemini-3.6-flash", contents=prompt_qa)
             qa_notes = res_qa.text
 
-            # 4. AGENT 4: FRONTEND WEB DUMMY INITIAL
-            st.write("💻 Agent 4: Mengompilasi Landing Page draf dengan foto dummy...")
+            # 5. AGENT 5: FRONTEND WEB DUMMY INITIAL (DENGAN FAQ ACCORDION)
+            st.write("💻 Agent 5: Mengompilasi Landing Page draf dengan foto dummy & FAQ...")
             prompt_web = f"""
             Peran: Senior Frontend Developer.
             Buatkan 1 file HTML utuh mandiri (Tailwind CSS CDN) untuk:
@@ -143,18 +152,25 @@ if run_btn and business_name:
             - Kontak WA: {phone_number}
             - Konteks: {additional_notes}
 
-            Placeholder Foto:
-            - Hero: https://picsum.photos/seed/{slug}-hero/1200/600 (Tambahkan komentar: <!-- GANTI URL FOTO HERO DISINI -->)
-            - Layanan 1: https://picsum.photos/seed/{slug}-srv1/600/400 (Tambahkan komentar: <!-- GANTI URL FOTO LAYANAN DISINI -->)
-            - Layanan 2: https://picsum.photos/seed/{slug}-srv2/600/400 (Tambahkan komentar: <!-- GANTI URL FOTO LAYANAN DISINI -->)
-            - Layanan 3: https://picsum.photos/seed/{slug}-srv3/600/400 (Tambahkan komentar: <!-- GANTI URL FOTO LAYANAN DISINI -->)
-            - Komponen: Header, Hero + CTA WhatsApp, Grid Layanan, Testimoni, Footer.
-            Output HANYA kode HTML mentah (tanpa ```html).
+            Placeholder Foto (Lorem Picsum):
+            - Hero: https://picsum.photos/seed/{slug}-hero/1200/600 (<!-- GANTI URL FOTO HERO DISINI -->)
+            - Layanan 1: https://picsum.photos/seed/{slug}-srv1/600/400 (<!-- GANTI URL FOTO LAYANAN DISINI -->)
+            - Layanan 2: https://picsum.photos/seed/{slug}-srv2/600/400 (<!-- GANTI URL FOTO LAYANAN DISINI -->)
+            - Layanan 3: https://picsum.photos/seed/{slug}-srv3/600/400 (<!-- GANTI URL FOTO LAYANAN DISINI -->)
+
+            Komponen Wajib Halaman:
+            1. Header sticky dengan info kontak WhatsApp cepat.
+            2. Hero Section dengan CTA WhatsApp langsung.
+            3. Grid 3 Card Layanan/Produk lengkap dengan foto dummy.
+            4. Bagian Review / Testimoni Bintang 5.
+            5. Section FAQ (Pertanyaan yang Sering Diajukan): 
+               - Buatkan 3-4 pertanyaan & jawaban umum seputar layanan/produk.
+               - Gunakan elemen native HTML `<details class="group bg-white p-4 rounded-xl border border-gray-100 shadow-sm cursor-pointer mb-3">` dan `<summary class="font-semibold text-gray-800 flex justify-between items-center list-none">`.
+            6. Footer lengkap dengan alamat di {business_city}, jam operasional, dan info copyright.
+
+            Output HANYA kode HTML mentah (tanpa blok markdown ```html).
             """
-            res_web = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=prompt_web,
-            )
+            res_web = client.models.generate_content(model="gemini-3.6-flash", contents=prompt_web)
             raw_text = res_web.text or ""
             html_code = raw_text.replace("```html", "").replace("```", "").strip()
 
@@ -168,6 +184,7 @@ if run_btn and business_name:
                 "slug": slug,
                 "audit": raw_audit,
                 "seo": raw_seo,
+                "socmed": raw_socmed,
                 "qa_notes": qa_notes,
                 "html_code": html_code,
             }
@@ -183,13 +200,16 @@ if st.session_state.pipeline_data:
     col_left, col_right = st.columns([1, 1])
 
     with col_left:
-        tab_audit, tab_seo, tab_qa = st.tabs(["📋 Draf GBP & Copy", "🎯 SEO & Schema", "🛡️ QA Review & Human Action"])
+        tab_audit, tab_seo, tab_socmed, tab_qa = st.tabs(["📋 Draf GBP", "🎯 SEO", "📱 Konten Sosmed", "🛡️ QA Action"])
         
         with tab_audit:
             st.markdown(data["audit"])
             
         with tab_seo:
             st.markdown(data["seo"])
+
+        with tab_socmed:
+            st.markdown(data["socmed"])
             
         with tab_qa:
             st.subheader("Catatan Audit QA Agent")
@@ -201,7 +221,7 @@ if st.session_state.pipeline_data:
             
             user_feedback = st.text_input(
                 "Catatan Tambahan (Opsional):", 
-                placeholder="Contoh: Tolong buatkan gaya bahasa lebih santai dan fokuskan kata kunci di Gunungpati."
+                placeholder="Contoh: Tambahkan FAQ tentang durasi pengerjaan, atau sesuaikan gaya prompt gambar."
             )
             
             apply_btn = st.button("✨ Terapkan Hasil QA & Perbaiki Otomatis (Apply Fixes)", type="primary")
@@ -212,11 +232,12 @@ if st.session_state.pipeline_data:
                         # 1. PROSES REVISI STRATEGI
                         prompt_refine = f"""
                         Peran: Master Local SEO Polisher.
-                        Tulis ulang strategi GBP dan SEO berikut dengan menerapkan SEMUA catatan tim QA serta feedback pengguna.
+                        Tulis ulang strategi GBP, SEO, dan Sosmed berikut dengan menerapkan SEMUA catatan tim QA serta feedback pengguna.
 
                         Draf Awal:
                         {data['audit']}
                         {data['seo']}
+                        {data['socmed']}
 
                         Catatan QA Awal:
                         {data['qa_notes']}
@@ -224,12 +245,9 @@ if st.session_state.pipeline_data:
                         Instruksi Tambahan Pengguna:
                         {user_feedback if user_feedback else 'Terapkan semua saran QA tanpa tambahan lain.'}
 
-                        Output: Markdown terstruktur dengan format rapi (Bagian GBP Final & Bagian Schema SEO Final).
+                        Output: Markdown terstruktur dengan format rapi (Bagian GBP Final, Bagian Schema SEO Final, dan Bagian Sosmed Final).
                         """
-                        res_refine = client.models.generate_content(
-                            model="gemini-3.6-flash",
-                            contents=prompt_refine,
-                        )
+                        res_refine = client.models.generate_content(model="gemini-3.6-flash", contents=prompt_refine)
                         refined_strategy = res_refine.text
 
                         # 2. QA AGENT ROUND 2: RE-AUDIT HASIL REVISI
@@ -245,43 +263,48 @@ if st.session_state.pipeline_data:
                         2. Pastikan tidak ada pelanggaran baru pada pedoman Google Business Profile atau sintaks schema.
                         3. Berikan skor akhir kesiapan (0-100%) dan pernyataan kelayakan publikasi: [100% PASS - READY TO PUBLISH].
                         """
-                        res_re_qa = client.models.generate_content(
-                            model="gemini-3.6-flash",
-                            contents=prompt_re_qa,
-                        )
+                        res_re_qa = client.models.generate_content(model="gemini-3.6-flash", contents=prompt_re_qa)
                         re_qa_notes = res_re_qa.text
 
-                        # 3. REKOMPILASI WEB DENGAN DATA YANG SUDAH TERVALIDASI
+                        # 3. REKOMPILASI WEB DENGAN DATA YANG SUDAH TERVALIDASI & FAQ
                         prompt_web_refined = f"""
                         Peran: Senior Frontend Developer.
                         Perbarui kode landing page HTML (Tailwind CSS) dengan konten yang sudah disempurnakan:
                         - Nama Usaha: {data['business_name']}
                         - Wilayah: {data['business_city']}
                         - Kontak WA: {data['phone_number']}
-                        - Konten Baru yang Sudah Disempurnakan:
+                        - Konten Baru:
                         {refined_strategy}
 
-                        Placeholder Foto:
+                        Placeholder Foto (Lorem Picsum):
                         - Hero: [https://picsum.photos/seed/](https://picsum.photos/seed/){data['slug']}-hero/1200/600 (<!-- GANTI URL FOTO HERO DISINI -->)
                         - Layanan 1: [https://picsum.photos/seed/](https://picsum.photos/seed/){data['slug']}-srv1/600/400 (<!-- GANTI URL FOTO LAYANAN DISINI -->)
                         - Layanan 2: [https://picsum.photos/seed/](https://picsum.photos/seed/){data['slug']}-srv2/600/400 (<!-- GANTI URL FOTO LAYANAN DISINI -->)
                         - Layanan 3: [https://picsum.photos/seed/](https://picsum.photos/seed/){data['slug']}-srv3/600/400 (<!-- GANTI URL FOTO LAYANAN DISINI -->)
 
+                        Komponen Wajib:
+                        - Header sticky + CTA WA
+                        - Hero Section
+                        - 3 Card Layanan
+                        - Testimoni
+                        - Section FAQ interaktif (3-4 item menggunakan tag `<details>` dan `<summary>`)
+                        - Footer lengkap
+
                         Output HANYA kode HTML mentah (tanpa ```html).
                         """
-                        res_web_refine = client.models.generate_content(
-                            model="gemini-3.6-flash",
-                            contents=prompt_web_refined,
-                        )
+                        res_web_refine = client.models.generate_content(model="gemini-3.6-flash", contents=prompt_web_refined)
                         raw_web_refine = res_web_refine.text or ""
                         new_html = raw_web_refine.replace("```html", "").replace("```", "").strip()
 
-                        # Update data di session state termasuk laporan QA putaran kedua
-                        data["audit"] = refined_strategy
+                        # Memecah hasil gabungan ke tab agar tetap rapi saat ditampilkan
+                        data["audit"] = "### 📋 STRATEGI FINAL (GBP, SEO, & SOSMED)\n\n" + refined_strategy
+                        data["seo"] = "*(Tergabung dalam dokumen strategi final di Tab GBP)*"
+                        data["socmed"] = "*(Tergabung dalam dokumen strategi final di Tab GBP)*"
                         data["qa_notes"] = f"### 🛡️ HASIL RE-AUDIT QA PUTARAN KEDUA (PASCA REVISI)\n\n{re_qa_notes}\n\n---\n\n### 📜 Arsip Audit Draf Awal:\n{data['qa_notes']}"
                         data["html_code"] = new_html
+                        
                         st.session_state.is_refined = True
-                        st.success("✅ Output, Halaman Web, dan Re-Audit QA berhasil diperbarui!")
+                        st.success("✅ Output, Halaman Web (dengan FAQ), dan Re-Audit QA berhasil diperbarui!")
                         st.rerun()
 
                     except Exception as e:
