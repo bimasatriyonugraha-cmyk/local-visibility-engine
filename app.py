@@ -9,7 +9,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Mengambil konfigurasi dari secrets Streamlit Cloud
+# Mengambil konfigurasi dari secrets Streamlit Cloud atau Environment
 api_key = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
 project_id = st.secrets.get("GCP_PROJECT_ID", os.environ.get("GCP_PROJECT_ID"))
 location = st.secrets.get("GCP_LOCATION", "global")
@@ -18,7 +18,7 @@ if not api_key:
     st.error("API Key belum terpasang! Silakan tambahkan GEMINI_API_KEY di menu Secrets Streamlit.")
     st.stop()
 
-# Inisialisasi client Vertex AI resmi (memotong kredit Google Cloud)
+# Inisialisasi client resmi Vertex AI
 client = genai.Client(
     vertexai=True,
     project=project_id,
@@ -27,7 +27,7 @@ client = genai.Client(
 )
 
 st.title("⚡ LocaPulse AI: Local Visibility & Web Engine")
-st.caption("Engine otomatisasi audit profil bisnis fisik dan penerbitan microsite instan berbasis AI.")
+st.caption("Engine otomatisasi audit profil bisnis fisik, SEO teknis, microsite instan, dan evaluasi kepatuhan pedoman lokal.")
 
 # Sidebar: Form Input
 with st.sidebar:
@@ -48,11 +48,11 @@ col_left, col_right = st.columns([1, 1])
 if run_btn and business_name:
     slug = business_name.lower().replace(" ", "-").replace(".", "")
 
-    with st.status("Sedang memproses riset dan generate website...", expanded=True) as status:
+    with st.status("Sedang menjalankan pipeline 4-Agent AI...", expanded=True) as status:
         
         try:
-            # 1. LOCAL SEO & GBP AUDIT
-            st.write("🔍 Menganalisis visibilitas & profil bisnis lokal...")
+            # 1. AGENT 1: LOCAL PROFILE & GBP STRATEGIST
+            st.write("🔍 Agent 1: Menganalisis visibilitas & profil Google Business...")
             prompt_audit = f"""
             Peran: Senior Local SEO Auditor & Google Business Profile Specialist.
             Analisis profil bisnis berikut:
@@ -76,8 +76,33 @@ if run_btn and business_name:
             )
             audit_output = res_audit.text
 
-            # 2. GENERATE LANDING PAGE (TAILWIND CSS)
-            st.write("💻 Mengompilasi kode HTML single-page dengan Tailwind CSS...")
+            # 2. AGENT 2: TECHNICAL SEO & LOCAL SCHEMA SPECIALIST
+            st.write("⚙️ Agent 2: Mengompilasi Schema Markup JSON-LD & On-Page Meta...")
+            prompt_seo = f"""
+            Peran: Senior Technical SEO & Local Schema Specialist.
+            Buatkan konfigurasi optimasi teknis on-page dan metadata untuk bisnis berikut:
+            - Nama Bisnis: {business_name}
+            - Kategori: {business_niche}
+            - Wilayah: {business_city}
+            - Kontak WA: {phone_number}
+            - Info Tambahan: {additional_notes}
+
+            Tugas:
+            1. Buat kode Schema JSON-LD bertipe `LocalBusiness` lengkap (name, description, telephone, address, areaServed).
+            2. Tuliskan tag meta penting: Title tag SEO (< 60 karakter), Meta Description (< 160 karakter), dan Open Graph tags (og:title, og:description).
+            3. Berikan 3 rekomendasi NAP (Name, Address, Phone) consistency checklist untuk platform direktori lokal.
+
+            Format Output: Markdown rapi, dengan blok kode ```json untuk Schema dan ```html untuk tag meta.
+            """
+
+            res_seo = client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=prompt_seo,
+            )
+            seo_output = res_seo.text
+
+            # 3. AGENT 3: FRONTEND WEB DEVELOPER
+            st.write("💻 Agent 3: Mengompilasi kode HTML single-page dengan Tailwind CSS...")
             prompt_web = f"""
             Peran: Senior Frontend Developer.
             Buatkan 1 file HTML utuh (single-page) mandiri tanpa file eksternal selain Tailwind CDN untuk:
@@ -106,12 +131,53 @@ if run_btn and business_name:
             
             raw_text = res_web.text or ""
             html_code = raw_text.replace("```html", "").replace("```", "").strip()
-            status.update(label="Website & Laporan Berhasil Dibuat!", state="complete", expanded=False)
 
+            # 4. AGENT 4: QUALITY ASSURANCE & POLICY COMPLIANCE SPECIALIST
+            st.write("🛡️ Agent 4: Menguji kepatuhan kebijakan Google, validasi NAP, & performa...")
+            prompt_qa = f"""
+            Peran: Lead Quality Assurance & Google Policy Compliance Specialist.
+            Tugas: Lakukan audit kepatuhan dan validasi teknis terhadap hasil audit GBP dan strategi SEO berikut.
+
+            Data Input Bisnis:
+            - Nama Bisnis: {business_name}
+            - Kategori: {business_niche}
+            - Kota: {business_city}
+            - No WA: {phone_number}
+
+            Hasil Audit GBP & Deskripsi:
+            {audit_output}
+
+            Hasil Schema & Meta Tags:
+            {seo_output}
+
+            Kriteria Pengujian:
+            1. **Google Business Profile Policy Check**: Periksa apakah ada pelanggaran (keyword stuffing di nama bisnis, klaim berlebihan, karakter terlarang, atau risiko penangguhan profil).
+            2. **NAP & Schema Integrity**: Cek konsistensi format nomor telepon, penulisan lokasi, dan struktur Schema JSON-LD.
+            3. **UX & Conversion Readiness**: Evaluasi kejelasan Call-to-Action (CTA) dan kenyamanan pembaca di perangkat seluler.
+            4. **Skor Kesiapan & Rekomendasi Perbaikan**: Berikan skor (0-100%) dan poin tindakan prioritas sebelum materi dipublikasikan.
+
+            Format Output: Markdown terstruktur dengan status badge (Contoh: [PASS], [WARNING], [ACTION NEEDED]).
+            """
+
+            res_qa = client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=prompt_qa,
+            )
+            qa_output = res_qa.text
+
+            status.update(label="Seluruh Pipeline Multi-Agent Selesai!", state="complete", expanded=False)
+
+            # Panel Kiri: 3 Tab Hasil Analisis & QA
             with col_left:
-                st.subheader("📋 Audit & Strategi Profil")
-                st.markdown(audit_output)
+                tab_gbp, tab_seo, tab_qa = st.tabs(["📋 Audit GBP", "🎯 SEO & Schema", "🛡️ QA & Kepatuhan"])
+                with tab_gbp:
+                    st.markdown(audit_output)
+                with tab_seo:
+                    st.markdown(seo_output)
+                with tab_qa:
+                    st.markdown(qa_output)
 
+            # Panel Kanan: Live Preview & File Download
             with col_right:
                 st.subheader("🌐 Pratinjau Halaman Web")
                 st.components.v1.html(html_code, height=600, scrolling=True)
