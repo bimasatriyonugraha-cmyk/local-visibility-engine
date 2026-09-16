@@ -64,7 +64,7 @@ if run_btn and business_name:
             """
             
             res_audit = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.6-flash",
                 contents=prompt_audit,
             )
             audit_output = res_audit.text
@@ -93,7 +93,7 @@ if run_btn and business_name:
             """
 
             res_web = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.6-flash",
                 contents=prompt_web,
             )
             
