@@ -9,15 +9,22 @@ st.set_page_config(
     layout="wide"
 )
 
-# Mengambil API key dari secrets Streamlit Cloud atau Environment
+# Mengambil konfigurasi dari secrets Streamlit Cloud
 api_key = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
+project_id = st.secrets.get("GCP_PROJECT_ID", os.environ.get("GCP_PROJECT_ID"))
+location = st.secrets.get("GCP_LOCATION", "us-central1")
 
 if not api_key:
     st.error("API Key belum terpasang! Silakan tambahkan GEMINI_API_KEY di menu Secrets Streamlit.")
     st.stop()
 
-# Inisialisasi client Gemini
-client = genai.Client(api_key=api_key)
+# Inisialisasi client Vertex AI resmi (memotong kredit Google Cloud)
+client = genai.Client(
+    vertexai=True,
+    project=project_id,
+    location=location,
+    api_key=api_key
+)
 
 st.title("⚡ LocaPulse AI: Local Visibility & Web Engine")
 st.caption("Engine otomatisasi audit profil bisnis fisik dan penerbitan microsite instan berbasis AI.")
@@ -25,13 +32,13 @@ st.caption("Engine otomatisasi audit profil bisnis fisik dan penerbitan microsit
 # Sidebar: Form Input
 with st.sidebar:
     st.header("Data Usaha Klien")
-    business_name = st.text_input("Nama Usaha UMKM", placeholder="Contoh: Klinik Sehat Keluarga")
-    business_niche = st.text_input("Kategori / Niche", placeholder="Contoh: Klinik Kesehatan / Kuliner")
+    business_name = st.text_input("Nama Usaha UMKM", placeholder="Contoh: Defa Digi")
+    business_niche = st.text_input("Kategori / Niche", placeholder="Contoh: Konsultan Google Business Profile")
     business_city = st.text_input("Kota / Wilayah", placeholder="Contoh: Semarang, Jawa Tengah")
     phone_number = st.text_input("Nomor WhatsApp", placeholder="Contoh: 6281234567890")
     additional_notes = st.text_area(
         "Konteks & Keunggulan",
-        placeholder="Contoh: Buka 24 jam, rating 4.9 di Maps, dokter spesialis lengkap."
+        placeholder="Contoh: Spesialis merawat GBP biar sehat dan pembuatan microsite instan."
     )
     
     run_btn = st.button("Jalankan Pipeline AI", type="primary", use_container_width=True)
