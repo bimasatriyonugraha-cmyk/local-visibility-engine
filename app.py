@@ -9,7 +9,13 @@ st.set_page_config(
     layout="wide"
 )
 
-# Mengambil konfigurasi dari secrets Streamlit Cloud atau Environment
+# Inisialisasi Session State untuk alur Human-in-the-Loop
+if "pipeline_data" not in st.session_state:
+    st.session_state.pipeline_data = None
+if "is_refined" not in st.session_state:
+    st.session_state.is_refined = False
+
+# Konfigurasi Secrets Streamlit
 api_key = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
 project_id = st.secrets.get("GCP_PROJECT_ID", os.environ.get("GCP_PROJECT_ID"))
 location = st.secrets.get("GCP_LOCATION", "global")
@@ -18,7 +24,7 @@ if not api_key:
     st.error("API Key belum terpasang! Silakan tambahkan GEMINI_API_KEY di menu Secrets Streamlit.")
     st.stop()
 
-# Inisialisasi client resmi Vertex AI
+# Inisialisasi client Vertex AI
 client = genai.Client(
     vertexai=True,
     project=project_id,
@@ -27,9 +33,9 @@ client = genai.Client(
 )
 
 st.title("⚡ LocaPulse AI: Local Visibility & Web Engine")
-st.caption("Engine otomatisasi audit profil bisnis fisik, SEO teknis, microsite instan, dan evaluasi kepatuhan pedoman lokal.")
+st.caption("Human-in-the-Loop Multi-Agent: Audit GBP, Schema SEO, QA Review, & Refinement Interaktif.")
 
-# Sidebar: Form Input
+# Sidebar: Form Input Bisnis
 with st.sidebar:
     st.header("Data Usaha Klien")
     business_name = st.text_input("Nama Usaha UMKM", placeholder="Contoh: Defa Digi")
@@ -41,15 +47,14 @@ with st.sidebar:
         placeholder="Contoh: Spesialis merawat GBP biar sehat dan pembuatan microsite instan."
     )
     
-    run_btn = st.button("Jalankan Pipeline AI", type="primary", use_container_width=True)
+    run_btn = st.button("🚀 1. Jalankan Analisis Awal", type="primary", use_container_width=True)
 
-col_left, col_right = st.columns([1, 1])
-
+# ----------------- PIPELINE TAHAP 1: DRAF AWAL & QA REVIEW -----------------
 if run_btn and business_name:
+    st.session_state.is_refined = False
     slug = business_name.lower().replace(" ", "-").replace(".", "")
 
-    with st.status("Sedang menjalankan pipeline 4-Agent AI...", expanded=True) as status:
-        
+    with st.status("Sedang memproses tahap awal multi-agent...", expanded=True) as status:
         try:
             # 1. AGENT 1: LOCAL PROFILE & GBP STRATEGIST
             st.write("🔍 Agent 1: Menganalisis visibilitas & profil Google Business...")
@@ -69,12 +74,11 @@ if run_btn and business_name:
 
             Output: Format Markdown yang rapi dan profesional.
             """
-            
             res_audit = client.models.generate_content(
                 model="gemini-3.6-flash",
                 contents=prompt_audit,
             )
-            audit_output = res_audit.text
+            raw_audit = res_audit.text
 
             # 2. AGENT 2: TECHNICAL SEO & LOCAL SCHEMA SPECIALIST
             st.write("⚙️ Agent 2: Mengompilasi Schema Markup JSON-LD & On-Page Meta...")
@@ -89,112 +93,192 @@ if run_btn and business_name:
 
             Tugas:
             1. Buat kode Schema JSON-LD bertipe `LocalBusiness` lengkap (name, description, telephone, address, areaServed).
-            2. Tuliskan tag meta penting: Title tag SEO (< 60 karakter), Meta Description (< 160 karakter), dan Open Graph tags (og:title, og:description).
-            3. Berikan 3 rekomendasi NAP (Name, Address, Phone) consistency checklist untuk platform direktori lokal.
+            2. Tuliskan tag meta penting: Title tag SEO (< 60 karakter), Meta Description (< 160 karakter), dan Open Graph tags.
+            3. Berikan 3 rekomendasi NAP consistency checklist untuk direktori lokal.
 
-            Format Output: Markdown rapi, dengan blok kode ```json untuk Schema dan ```html untuk tag meta.
+            Format Output: Markdown rapi dengan blok kode ```json dan ```html.
             """
-
             res_seo = client.models.generate_content(
                 model="gemini-3.6-flash",
                 contents=prompt_seo,
             )
-            seo_output = res_seo.text
+            raw_seo = res_seo.text
 
-            # 3. AGENT 3: FRONTEND WEB DEVELOPER
-            st.write("💻 Agent 3: Mengompilasi kode HTML single-page dengan Tailwind CSS...")
-            prompt_web = f"""
-            Peran: Senior Frontend Developer.
-            Buatkan 1 file HTML utuh (single-page) mandiri tanpa file eksternal selain Tailwind CDN untuk:
-            - Nama Usaha: {business_name}
-            - Bidang/Kategori: {business_niche} di {business_city}
-            - Nomor Kontak WA: {phone_number}
-            - Keunggulan: {additional_notes}
-
-            Spesifikasi Desain & Teknis:
-            1. Pasang Tailwind CSS CDN (<script src="https://cdn.tailwindcss.com"></script>).
-            2. Gunakan font clean 'Plus Jakarta Sans'.
-            3. Mobile-first responsive (terlihat rapi di HP maupun desktop).
-            4. Komponen wajib:
-               - Header dengan jam operasional & tombol kontak cepat.
-               - Hero Section dengan judul memikat & tombol CTA WhatsApp langsung.
-               - Grid Card daftar layanan / produk unggulan.
-               - Testimoni pelanggan bintang 5.
-               - Footer lengkap dengan alamat dan peta placeholder.
-            5. Output HANYA kode HTML mentah, jangan sertakan tanda markdown ```html atau ```.
-            """
-
-            res_web = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=prompt_web,
-            )
-            
-            raw_text = res_web.text or ""
-            html_code = raw_text.replace("```html", "").replace("```", "").strip()
-
-            # 4. AGENT 4: QUALITY ASSURANCE & POLICY COMPLIANCE SPECIALIST
-            st.write("🛡️ Agent 4: Menguji kepatuhan kebijakan Google, validasi NAP, & performa...")
+            # 3. AGENT 3: QUALITY ASSURANCE (CRITIC AGENT)
+            st.write("🛡️ Agent 3: Melakukan evaluasi kepatuhan pedoman & integritas data...")
             prompt_qa = f"""
-            Peran: Lead Quality Assurance & Google Policy Compliance Specialist.
-            Tugas: Lakukan audit kepatuhan dan validasi teknis terhadap hasil audit GBP dan strategi SEO berikut.
+            Peran: Lead Quality Assurance & Google Policy Auditor.
+            Lakukan evaluasi kritis terhadap hasil draf GBP dan SEO berikut:
 
-            Data Input Bisnis:
-            - Nama Bisnis: {business_name}
-            - Kategori: {business_niche}
-            - Kota: {business_city}
-            - No WA: {phone_number}
+            Data Bisnis Asli:
+            - Nama: {business_name} | Kategori: {business_niche} | Kota: {business_city} | WA: {phone_number}
 
-            Hasil Audit GBP & Deskripsi:
-            {audit_output}
+            Draf GBP:
+            {raw_audit}
 
-            Hasil Schema & Meta Tags:
-            {seo_output}
+            Draf SEO & Schema:
+            {raw_seo}
 
-            Kriteria Pengujian:
-            1. **Google Business Profile Policy Check**: Periksa apakah ada pelanggaran (keyword stuffing di nama bisnis, klaim berlebihan, karakter terlarang, atau risiko penangguhan profil).
-            2. **NAP & Schema Integrity**: Cek konsistensi format nomor telepon, penulisan lokasi, dan struktur Schema JSON-LD.
-            3. **UX & Conversion Readiness**: Evaluasi kejelasan Call-to-Action (CTA) dan kenyamanan pembaca di perangkat seluler.
-            4. **Skor Kesiapan & Rekomendasi Perbaikan**: Berikan skor (0-100%) dan poin tindakan prioritas sebelum materi dipublikasikan.
+            Kriteria Penilaian:
+            1. Deteksi kata-kata berlebihan, spam, atau potensi pelanggaran pedoman Google Business Profile.
+            2. Konsistensi penulisan NAP (Name, Address, Phone).
+            3. Batasan karakter title (<60 char) dan deskripsi (<160 char).
+            4. Tuliskan ringkasan poin perbaikan yang direkomendasikan.
 
-            Format Output: Markdown terstruktur dengan status badge (Contoh: [PASS], [WARNING], [ACTION NEEDED]).
+            Output: Format Markdown dengan badge [PASS], [WARNING], atau [FIX NEEDED].
             """
-
             res_qa = client.models.generate_content(
                 model="gemini-3.6-flash",
                 contents=prompt_qa,
             )
-            qa_output = res_qa.text
+            qa_notes = res_qa.text
 
-            status.update(label="Seluruh Pipeline Multi-Agent Selesai!", state="complete", expanded=False)
+            # 4. AGENT 4: FRONTEND WEB DUMMY INITIAL
+            st.write("💻 Agent 4: Mengompilasi Landing Page draf dengan foto dummy...")
+            prompt_web = f"""
+            Peran: Senior Frontend Developer.
+            Buatkan 1 file HTML utuh mandiri (Tailwind CSS CDN) untuk:
+            - Nama Usaha: {business_name}
+            - Bidang/Kategori: {business_niche} di {business_city}
+            - Kontak WA: {phone_number}
+            - Konteks: {additional_notes}
 
-            # Panel Kiri: 3 Tab Hasil Analisis & QA
-            with col_left:
-                tab_gbp, tab_seo, tab_qa = st.tabs(["📋 Audit GBP", "🎯 SEO & Schema", "🛡️ QA & Kepatuhan"])
-                with tab_gbp:
-                    st.markdown(audit_output)
-                with tab_seo:
-                    st.markdown(seo_output)
-                with tab_qa:
-                    st.markdown(qa_output)
+            Placeholder Foto:
+            - Hero: https://picsum.photos/seed/{slug}-hero/1200/600 (Tambahkan komentar: <!-- GANTI URL FOTO HERO DISINI -->)
+            - Layanan: https://picsum.photos/seed/{slug}-srv1/600/400 (Tambahkan komentar: <!-- GANTI URL FOTO LAYANAN DISINI -->)
+            - Komponen: Header, Hero + CTA WhatsApp, Grid Layanan, Testimoni, Footer.
+            Output HANYA kode HTML mentah (tanpa ```html).
+            """
+            res_web = client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=prompt_web,
+            )
+            raw_text = res_web.text or ""
+            html_code = raw_text.replace("```html", "").replace("```", "").strip()
 
-            # Panel Kanan: Live Preview & File Download
-            with col_right:
-                st.subheader("🌐 Pratinjau Halaman Web")
-                st.components.v1.html(html_code, height=600, scrolling=True)
-                st.download_button(
-                    label="⬇️ Download File index.html",
-                    data=html_code,
-                    file_name=f"{slug}-index.html",
-                    mime="text/html",
-                    use_container_width=True
-                )
+            # Simpan hasil ke Session State
+            st.session_state.pipeline_data = {
+                "business_name": business_name,
+                "business_niche": business_niche,
+                "business_city": business_city,
+                "phone_number": phone_number,
+                "additional_notes": additional_notes,
+                "slug": slug,
+                "audit": raw_audit,
+                "seo": raw_seo,
+                "qa_notes": qa_notes,
+                "html_code": html_code,
+            }
+            status.update(label="Tahap Analisis Selesai! Silakan cek tab QA Review.", state="complete", expanded=False)
 
         except Exception as e:
             status.update(label="Terjadi Kesalahan", state="error", expanded=True)
             st.error(f"Pesan error sistem: {e}")
 
-else:
+# ----------------- TAMPILAN INTERAKTIF & HUMAN-IN-THE-LOOP -----------------
+if st.session_state.pipeline_data:
+    data = st.session_state.pipeline_data
+    col_left, col_right = st.columns([1, 1])
+
     with col_left:
-        st.info("Isi data bisnis di panel sebelah kiri lalu klik tombol **Jalankan Pipeline AI**.")
+        tab_audit, tab_seo, tab_qa = st.tabs(["📋 Draf GBP & Copy", "🎯 SEO & Schema", "🛡️ QA Review & Human Action"])
+        
+        with tab_audit:
+            st.markdown(data["audit"])
+            
+        with tab_seo:
+            st.markdown(data["seo"])
+            
+        with tab_qa:
+            st.subheader("Catatan Audit QA Agent")
+            st.markdown(data["qa_notes"])
+            
+            st.divider()
+            st.markdown("### ✍️ Human-in-the-Loop: Terapkan Perbaikan")
+            st.caption("Kamu bisa menambahkan instruksi tambahan ke AI sebelum menyetujui hasil revisi:")
+            
+            user_feedback = st.text_input(
+                "Catatan Tambahan (Opsional):", 
+                placeholder="Contoh: Tolong buatkan gaya bahasa lebih santai dan fokuskan kata kunci di Gunungpati."
+            )
+            
+            apply_btn = st.button("✨ Terapkan Hasil QA & Perbaiki Otomatis (Apply Fixes)", type="primary")
+
+            if apply_btn:
+                with st.spinner("Sedang memoles output dan mengompilasi ulang website..."):
+                    try:
+                        # PROSES REVISI STRATEGI
+                        prompt_refine = f"""
+                        Peran: Master Local SEO Polisher.
+                        Tulis ulang strategi GBP dan SEO berikut dengan menerapkan SEMUA catatan tim QA serta feedback pengguna.
+
+                        Draf Awal:
+                        {data['audit']}
+                        {data['seo']}
+
+                        Catatan QA:
+                        {data['qa_notes']}
+
+                        Instruksi Tambahan Pengguna:
+                        {user_feedback if user_feedback else 'Terapkan semua saran QA tanpa tambahan lain.'}
+
+                        Output: Markdown terstruktur dengan format rapi (Bagian GBP Final & Bagian Schema SEO Final).
+                        """
+                        res_refine = client.models.generate_content(
+                            model="gemini-3.6-flash",
+                            contents=prompt_refine,
+                        )
+                        refined_strategy = res_refine.text
+
+                        # REKOMPILASI WEB DENGAN DATA YANG SUDAH TERVALIDASI
+                        prompt_web_refined = f"""
+                        Peran: Senior Frontend Developer.
+                        Perbarui kode landing page HTML (Tailwind CSS) dengan konten yang sudah disempurnakan:
+                        - Nama Usaha: {data['business_name']}
+                        - Wilayah: {data['business_city']}
+                        - Kontak WA: {data['phone_number']}
+                        - Konten Baru yang Sudah Disempurnakan:
+                        {refined_strategy}
+
+                        Placeholder Foto:
+                        - Hero: [https://picsum.photos/seed/](https://picsum.photos/seed/){data['slug']}-hero/1200/600 (<!-- GANTI URL FOTO HERO DISINI -->)
+                        - Layanan: [https://picsum.photos/seed/](https://picsum.photos/seed/){data['slug']}-srv1/600/400 (<!-- GANTI URL FOTO LAYANAN DISINI -->)
+
+                        Output HANYA kode HTML mentah (tanpa ```html).
+                        """
+                        res_web_refine = client.models.generate_content(
+                            model="gemini-3.6-flash",
+                            contents=prompt_web_refined,
+                        )
+                        raw_web_refine = res_web_refine.text or ""
+                        new_html = raw_web_refine.replace("```html", "").replace("```", "").strip()
+
+                        # Update data di session state
+                        data["audit"] = refined_strategy
+                        data["html_code"] = new_html
+                        st.session_state.is_refined = True
+                        st.success("✅ Output dan Halaman Web berhasil diperbarui sesuai rekomendasi QA!")
+                        st.rerun()
+
+                    except Exception as e:
+                        st.error(f"Gagal melakukan perbaikan: {e}")
+
+    # Panel Kanan: Web Live Preview & Download
     with col_right:
-        st.empty()
+        if st.session_state.is_refined:
+            st.success("🌟 Menampilkan Pratinjau Web yang Telah Direvisi (Final)")
+        else:
+            st.info("ℹ️ Menampilkan Pratinjau Draf Awal (Belum diapply perbaikan QA)")
+            
+        st.subheader("🌐 Pratinjau Halaman Web")
+        st.components.v1.html(data["html_code"], height=650, scrolling=True)
+        st.download_button(
+            label="⬇️ Download File index.html",
+            data=data["html_code"],
+            file_name=f"{data['slug']}-index.html",
+            mime="text/html",
+            use_container_width=True
+        )
+
+else:
+    st.info("👈 Masukkan data usaha di sidebar sebelah kiri lalu klik tombol **🚀 1. Jalankan Analisis Awal**.")
