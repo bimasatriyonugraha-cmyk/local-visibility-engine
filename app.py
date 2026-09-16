@@ -12,7 +12,7 @@ st.set_page_config(
 # Mengambil konfigurasi dari secrets Streamlit Cloud
 api_key = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
 project_id = st.secrets.get("GCP_PROJECT_ID", os.environ.get("GCP_PROJECT_ID"))
-location = st.secrets.get("GCP_LOCATION", "us-central1")
+location = st.secrets.get("GCP_LOCATION", "global")
 
 if not api_key:
     st.error("API Key belum terpasang! Silakan tambahkan GEMINI_API_KEY di menu Secrets Streamlit.")
