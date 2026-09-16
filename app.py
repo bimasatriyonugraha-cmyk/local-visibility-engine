@@ -145,7 +145,9 @@ if run_btn and business_name:
 
             Placeholder Foto:
             - Hero: https://picsum.photos/seed/{slug}-hero/1200/600 (Tambahkan komentar: <!-- GANTI URL FOTO HERO DISINI -->)
-            - Layanan: https://picsum.photos/seed/{slug}-srv1/600/400 (Tambahkan komentar: <!-- GANTI URL FOTO LAYANAN DISINI -->)
+            - Layanan 1: https://picsum.photos/seed/{slug}-srv1/600/400 (Tambahkan komentar: <!-- GANTI URL FOTO LAYANAN DISINI -->)
+            - Layanan 2: https://picsum.photos/seed/{slug}-srv2/600/400 (Tambahkan komentar: <!-- GANTI URL FOTO LAYANAN DISINI -->)
+            - Layanan 3: https://picsum.photos/seed/{slug}-srv3/600/400 (Tambahkan komentar: <!-- GANTI URL FOTO LAYANAN DISINI -->)
             - Komponen: Header, Hero + CTA WhatsApp, Grid Layanan, Testimoni, Footer.
             Output HANYA kode HTML mentah (tanpa ```html).
             """
@@ -205,9 +207,9 @@ if st.session_state.pipeline_data:
             apply_btn = st.button("✨ Terapkan Hasil QA & Perbaiki Otomatis (Apply Fixes)", type="primary")
 
             if apply_btn:
-                with st.spinner("Sedang memoles output dan mengompilasi ulang website..."):
+                with st.spinner("Sedang memoles output, mengompilasi web, dan menjalankan QA Re-Audit..."):
                     try:
-                        # PROSES REVISI STRATEGI
+                        # 1. PROSES REVISI STRATEGI
                         prompt_refine = f"""
                         Peran: Master Local SEO Polisher.
                         Tulis ulang strategi GBP dan SEO berikut dengan menerapkan SEMUA catatan tim QA serta feedback pengguna.
@@ -216,7 +218,7 @@ if st.session_state.pipeline_data:
                         {data['audit']}
                         {data['seo']}
 
-                        Catatan QA:
+                        Catatan QA Awal:
                         {data['qa_notes']}
 
                         Instruksi Tambahan Pengguna:
@@ -230,7 +232,26 @@ if st.session_state.pipeline_data:
                         )
                         refined_strategy = res_refine.text
 
-                        # REKOMPILASI WEB DENGAN DATA YANG SUDAH TERVALIDASI
+                        # 2. QA AGENT ROUND 2: RE-AUDIT HASIL REVISI
+                        prompt_re_qa = f"""
+                        Peran: Lead Quality Assurance & Google Policy Compliance Auditor.
+                        Tugas: Lakukan Re-Audit putaran kedua terhadap hasil revisi akhir berikut:
+
+                        Hasil Strategi yang Sudah Direvisi:
+                        {refined_strategy}
+
+                        Kriteria:
+                        1. Verifikasi apakah catatan kritik sebelumnya sudah terselesaikan dengan baik.
+                        2. Pastikan tidak ada pelanggaran baru pada pedoman Google Business Profile atau sintaks schema.
+                        3. Berikan skor akhir kesiapan (0-100%) dan pernyataan kelayakan publikasi: [100% PASS - READY TO PUBLISH].
+                        """
+                        res_re_qa = client.models.generate_content(
+                            model="gemini-3.6-flash",
+                            contents=prompt_re_qa,
+                        )
+                        re_qa_notes = res_re_qa.text
+
+                        # 3. REKOMPILASI WEB DENGAN DATA YANG SUDAH TERVALIDASI
                         prompt_web_refined = f"""
                         Peran: Senior Frontend Developer.
                         Perbarui kode landing page HTML (Tailwind CSS) dengan konten yang sudah disempurnakan:
@@ -242,7 +263,9 @@ if st.session_state.pipeline_data:
 
                         Placeholder Foto:
                         - Hero: [https://picsum.photos/seed/](https://picsum.photos/seed/){data['slug']}-hero/1200/600 (<!-- GANTI URL FOTO HERO DISINI -->)
-                        - Layanan: [https://picsum.photos/seed/](https://picsum.photos/seed/){data['slug']}-srv1/600/400 (<!-- GANTI URL FOTO LAYANAN DISINI -->)
+                        - Layanan 1: [https://picsum.photos/seed/](https://picsum.photos/seed/){data['slug']}-srv1/600/400 (<!-- GANTI URL FOTO LAYANAN DISINI -->)
+                        - Layanan 2: [https://picsum.photos/seed/](https://picsum.photos/seed/){data['slug']}-srv2/600/400 (<!-- GANTI URL FOTO LAYANAN DISINI -->)
+                        - Layanan 3: [https://picsum.photos/seed/](https://picsum.photos/seed/){data['slug']}-srv3/600/400 (<!-- GANTI URL FOTO LAYANAN DISINI -->)
 
                         Output HANYA kode HTML mentah (tanpa ```html).
                         """
@@ -253,11 +276,12 @@ if st.session_state.pipeline_data:
                         raw_web_refine = res_web_refine.text or ""
                         new_html = raw_web_refine.replace("```html", "").replace("```", "").strip()
 
-                        # Update data di session state
+                        # Update data di session state termasuk laporan QA putaran kedua
                         data["audit"] = refined_strategy
+                        data["qa_notes"] = f"### 🛡️ HASIL RE-AUDIT QA PUTARAN KEDUA (PASCA REVISI)\n\n{re_qa_notes}\n\n---\n\n### 📜 Arsip Audit Draf Awal:\n{data['qa_notes']}"
                         data["html_code"] = new_html
                         st.session_state.is_refined = True
-                        st.success("✅ Output dan Halaman Web berhasil diperbarui sesuai rekomendasi QA!")
+                        st.success("✅ Output, Halaman Web, dan Re-Audit QA berhasil diperbarui!")
                         st.rerun()
 
                     except Exception as e:
